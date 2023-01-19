@@ -3,6 +3,7 @@ pipeline {
    agent any
    environment {
       DOCKERHUB_CREDENTIALS=credentials('dockerhub-lmalvarez')
+      SSH_MAIN_SERVER = credentials("SSH_MAIN_SERVER")
    }
    stages {
       stage('Get Version') {
@@ -50,7 +51,7 @@ pipeline {
                 ).trim()
             }
 
-            sh "(sleep 5s ; docker rm -f jenkins-lmalvarez &>/dev/null && echo \'Removed old container\' ; sleep 5s ; docker run --name jenkins-lmalvarez --net=backend-services --add-host=lmalvarez.com:${INTERNAL_IP}  -p 8080:8080 -p 50000:50000 -d -v /var/lib/jenkins:/var/jenkins_home -v /var/run/docker.sock:/var/run/docker.sock --cpus=0.7 --restart unless-stopped lmalvarez/jenkins:${APP_VERSION}) &"
+            sh "ssh ${SSH_MAIN_SERVER} '(sleep 5s ; docker rm -f jenkins-lmalvarez &>/dev/null && echo \'Removed old container\' ; sleep 5s ; docker run --name jenkins-lmalvarez --net=backend-services --add-host=lmalvarez.com:${INTERNAL_IP}  -p 8080:8080 -p 50000:50000 -d -v /var/lib/jenkins:/var/jenkins_home -v /var/run/docker.sock:/var/run/docker.sock --cpus=0.7 --restart unless-stopped lmalvarez/jenkins:${APP_VERSION}) &'"
          }
       }
    }
