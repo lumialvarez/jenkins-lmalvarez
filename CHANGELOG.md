@@ -5,7 +5,6 @@ Jenkins lmalvarez
 
 ## [1.1.0] - 18/01/2023
 ### Added
-- Added Docker Compose
 - Image Base jenkins/jenkins:2.375.2-lts
 
 
