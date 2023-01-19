@@ -22,8 +22,8 @@ pipeline {
                     lastBuild = currentBuild.previousSuccessfulBuild.displayName.replaceFirst(/^#[0-9]+ - v/, "")
                     echo "Last success version: ${lastBuild} \nNew version to deploy: ${APP_VERSION}"
                     if(lastBuild == APP_VERSION)  {
-                         //currentBuild.result = 'ABORTED'
-                         //error("Aborted: A version that already exists cannot be deployed a second time")
+                         currentBuild.result = 'ABORTED'
+                         error("Aborted: A version that already exists cannot be deployed a second time")
                     }
                 }
             }
