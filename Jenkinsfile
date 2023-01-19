@@ -22,8 +22,8 @@ pipeline {
                     lastBuild = currentBuild.previousSuccessfulBuild.displayName.replaceFirst(/^#[0-9]+ - v/, "")
                     echo "Last success version: ${lastBuild} \nNew version to deploy: ${APP_VERSION}"
                     if(lastBuild == APP_VERSION)  {
-                         currentBuild.result = 'ABORTED'
-                         error("Aborted: A version that already exists cannot be deployed a second time")
+                         //currentBuild.result = 'ABORTED'
+                         //error("Aborted: A version that already exists cannot be deployed a second time")
                     }
                 }
             }
@@ -41,7 +41,7 @@ pipeline {
             sh "docker push lmalvarez/jenkins:${APP_VERSION}"
         }
       }
-      stage('Deploy') {
+      stage('Set Deploy script') {
          steps {
              //script_internal_ip.sh -> ip route | awk '/docker0 /{print $9}'
             script {
@@ -51,7 +51,27 @@ pipeline {
                 ).trim()
             }
 
-            sh "ssh ${SSH_MAIN_SERVER} '(sleep 10s ; docker rm -f jenkins-lmalvarez &>/dev/null && echo \'Removed old container\' ; sleep 5s ; docker run --name jenkins-lmalvarez --net=backend-services --add-host=lmalvarez.com:${INTERNAL_IP}  -p 8080:8080 -p 50000:50000 -d -v /var/lib/jenkins:/var/jenkins_home -v /var/run/docker.sock:/var/run/docker.sock --cpus=0.7 --restart unless-stopped lmalvarez/jenkins:${APP_VERSION}) &'"
+            script {
+                REMOTE_HOME = sh (
+                    script: "ssh ${SSH_MAIN_SERVER} 'pwd'",
+                    returnStdout: true
+                ).trim()
+            }
+
+            sh "rm -rf async-jenkins-launcher.sh"
+
+            sh ''' echo "docker rm -f jenkins-lmalvarez &>/dev/null && echo \'Removed old container\' " >> async-jenkins-launcher.sh '''
+            sh ''' echo "sleep 5s" >> async-jenkins-launcher.sh '''
+            sh ''' echo "echo \'Starting new container\'" >> async-jenkins-launcher.sh '''
+            sh " echo 'docker run --name jenkins-lmalvarez --net=backend-services --add-host=lmalvarez.com:${INTERNAL_IP}  -p 8080:8080 -p 50000:50000 -d -v /var/lib/jenkins:/var/jenkins_home -v /var/run/docker.sock:/var/run/docker.sock --cpus=0.7 --restart unless-stopped lmalvarez/jenkins:${APP_VERSION}' >> async-jenkins-launcher.sh "
+
+            sh "cat async-jenkins-launcher.sh"
+
+            sh "ssh ${SSH_MAIN_SERVER} 'sudo rm -rf ${REMOTE_HOME}/tmp_jenkins/${JOB_NAME}'"
+            sh "ssh ${SSH_MAIN_SERVER} 'sudo mkdir -p -m 777 ${REMOTE_HOME}/tmp_jenkins/${JOB_NAME}'"
+            sh "scp -r ${WORKSPACE}/async-jenkins-launcher.sh ${SSH_MAIN_SERVER}:${REMOTE_HOME}/tmp_jenkins/${JOB_NAME}"
+
+            echo "Script created: ${REMOTE_HOME}/tmp_jenkins/${JOB_NAME}/async-jenkins-launcher.sh"
          }
       }
    }
