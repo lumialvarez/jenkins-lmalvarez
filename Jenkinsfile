@@ -29,33 +29,29 @@ pipeline {
          }
       }
       stage('Build') {
-            steps {
-                sh "docker build . -t lmalvarez/jenkins:${APP_VERSION}"
-            }
+        steps {
+            sh "docker build . -t lmalvarez/jenkins:${APP_VERSION}"
         }
-      stage('Deploy') {
-           steps {
-               //script_internal_ip.sh -> ip route | awk '/docker0 /{print $9}'
-              script {
-                  INTERNAL_IP = sh (
-                      script: '''ssh ${SSH_MAIN_SERVER} 'sudo bash script_internal_ip.sh' ''',
-                      returnStdout: true
-                  ).trim()
-              }
-  
-              sh "docker rm -f jenkins-lmalvarez &>/dev/null && echo \'Removed old container\' "
-  
-              sh "sleep 5s"
-  
-              sh "docker run --name jenkins-lmalvarez --net=backend-services --add-host=lmalvarez.com:${INTERNAL_IP}  -p 8080:8080 -p 50000:50000 -d -v /var/lib/jenkins:/var/jenkins_home -v /var/run/docker.sock:/var/run/docker.sock --cpus=0.7 --restart unless-stopped lmalvarez/jenkins:${APP_VERSION}"
-           }
-        }
+      }
       stage('Push') {
-            steps {
-                sh '''echo $DOCKERHUB_CREDENTIALS_PSW | docker login -u $DOCKERHUB_CREDENTIALS_USR --password-stdin '''
+        steps {
+            sh '''echo $DOCKERHUB_CREDENTIALS_PSW | docker login -u $DOCKERHUB_CREDENTIALS_USR --password-stdin '''
 
-                sh "docker push lmalvarez/jenkins:${APP_VERSION}"
-            }
+            sh "docker push lmalvarez/jenkins:${APP_VERSION}"
         }
+      }
+      stage('Deploy') {
+         steps {
+             //script_internal_ip.sh -> ip route | awk '/docker0 /{print $9}'
+            script {
+                INTERNAL_IP = sh (
+                    script: '''ssh ${SSH_MAIN_SERVER} 'sudo bash script_internal_ip.sh' ''',
+                    returnStdout: true
+                ).trim()
+            }
+
+            sh "(sleep 5s ; docker rm -f jenkins-lmalvarez &>/dev/null && echo \'Removed old container\' ; sleep 5s ; docker run --name jenkins-lmalvarez --net=backend-services --add-host=lmalvarez.com:${INTERNAL_IP}  -p 8080:8080 -p 50000:50000 -d -v /var/lib/jenkins:/var/jenkins_home -v /var/run/docker.sock:/var/run/docker.sock --cpus=0.7 --restart unless-stopped lmalvarez/jenkins:${APP_VERSION}) &"
+         }
+      }
    }
 }
